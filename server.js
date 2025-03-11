@@ -36,6 +36,7 @@ app.use("/incoming-call", callLimiter);
 const callVoices = {};       // { callSid: { voice, timestamp } }
 const conversationHistory = {}; // { callSid: [history] }
 const callAttempts = {};     // { callSid: attemptCount }
+const voiceOptions = ["Polly.Joanna-Neural", "Polly.Matthew-Neural"];
 
 // End terms detection
 const endTerms = new Set([
@@ -107,8 +108,9 @@ app.post("/incoming-call", async (req, res) => {
 
     // Initialize call tracking
     if (!callVoices[callSid]) {
+        const randomVoice = Math.random() < 0.5 ? "Polly.Matthew-Neural" : "Polly.Joanna-Neural";  
         callVoices[callSid] = {
-            voice: "Polly.Joanna-Neural",
+            voice: randomVoice,
             timestamp: Date.now()
         };
         callAttempts[callSid] = 0;
@@ -125,12 +127,12 @@ app.post("/incoming-call", async (req, res) => {
     // Handle user input
     if (speechResult) {
         callAttempts[callSid] = 0;  // Reset attempts
-        
-        if (endTerms.has(speechResult.toLowerCase())) {
-            twiml.say(voiceConfig,
-                `Thank you for choosing ${COMPANY_NAME}. Have a secure day!`
-            );
+        const userInput = speechResult.toLowerCase().trim().replace(/[.,!?]/g, "");
+
+        if ([...endTerms].some(term => userInput.includes(term))) {
+            twiml.say(voiceConfig, `Thank you for choosing ${COMPANY_NAME}. Have a secure day!`);
             twiml.hangup();
+            return res.type("text/xml").send(twiml.toString());
         } else {
             const geminiResponse = await getGeminiResponse(speechResult, callSid);
             
@@ -163,17 +165,17 @@ app.post("/incoming-call", async (req, res) => {
         
         if (callAttempts[callSid] > 2) {
             twiml.say(voiceConfig,
-                `Let's connect you to a human agent. Thank you for your patience.`
+                `It seems like you're unavailable at the moment. We hope you have a wonderful day! If you need assistance, feel free to call us back anytime.`
             );
-            twiml.redirect("/transfer");
+            twiml.hangup();
         } else {
             // Updated greeting messages
             const greetings = [
-                `Welcome to ${COMPANY_NAME}, your partner in protection. Are you calling about a policy, claim, or coverage question?`,
-                `Thank you for contacting ${COMPANY_NAME}. How can we assist with your insurance needs today?`,
-                `Hello! You've reached ${COMPANY_NAME}'s virtual assistant. What insurance matter can I help you with?`,
-                `We're here to safeguard what matters most to you. How can I assist with your insurance inquiries?`,
-                `Welcome to ${COMPANY_NAME}, ${COMPANY_TAGLINE}. What can I help you with today?`
+                `Welcome to ${COMPANY_NAME}, where your security and peace of mind matter most. How can I assist you today?`,
+                `Hello and thank you for calling ${COMPANY_NAME}. Are you inquiring about a policy, a claim, or something else?`,
+                `You've reached ${COMPANY_NAME}, your trusted partner in insurance. How may I help?`,
+                `At ${COMPANY_NAME}, we prioritize your protection. What can I do for you today?`,
+                `Welcome to ${COMPANY_NAME}, where we help you safeguard what matters. How can I assist you?`
             ];
             
             twiml.say(voiceConfig, greetings[callAttempts[callSid] % greetings.length]);
