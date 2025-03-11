@@ -23,7 +23,6 @@ const COMPANY_TAGLINE = "where peace of mind is our policy";
 const MAX_HISTORY_LENGTH = 10;
 const CALL_TIMEOUT_MINUTES = 30;
 
-
 // Rate limiting
 const callLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -168,10 +167,13 @@ app.post("/incoming-call", async (req, res) => {
             );
             twiml.redirect("/transfer");
         } else {
+            // Updated greeting messages
             const greetings = [
-                `Welcome to ${COMPANY_NAME}, ${COMPANY_TAGLINE}. How can I help?`,
-                `Thank you for calling. What insurance questions can I answer?`,
-                `${COMPANY_NAME} virtual assistant here. How may I assist you?`
+                `Welcome to ${COMPANY_NAME}, your partner in protection. Are you calling about a policy, claim, or coverage question?`,
+                `Thank you for contacting ${COMPANY_NAME}. How can we assist with your insurance needs today?`,
+                `Hello! You've reached ${COMPANY_NAME}'s virtual assistant. What insurance matter can I help you with?`,
+                `We're here to safeguard what matters most to you. How can I assist with your insurance inquiries?`,
+                `Welcome to ${COMPANY_NAME}, ${COMPANY_TAGLINE}. What can I help you with today?`
             ];
             
             twiml.say(voiceConfig, greetings[callAttempts[callSid] % greetings.length]);
@@ -210,6 +212,16 @@ app.get("/health", (req, res) => {
         memoryUsage: process.memoryUsage()
     });
 });
+
+app.get("/", (req, res) => {
+    res.send("Acme Insurance IVR is running!");
+});
+
+// Optional: Handle HEAD requests (often used for health checks)
+app.head("/", (req, res) => {
+    res.status(200).end();
+});
+
 
 // Start server
 const PORT = process.env.PORT || 3000;
